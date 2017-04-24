@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-class ETL(object):
+class BaseETL(object):
     def __init__(self, file_path, start_of_predicition, dependend_variable_period, show_plot=False):
         self.file_path = file_path  # 'bw_ross_308.csv'
         self.start_of_prediction = start_of_predicition
@@ -18,7 +18,8 @@ class ETL(object):
         self.extract()
         self.transform()
         self.load()
-        self.plot()
+        if self.show_plot:
+            self.plot()
         return self.X_train, self.X_test, self.y_train, self.y_test
 
     def extract(self):
@@ -98,7 +99,6 @@ class ETL(object):
         self.df_raw = self.df_raw.loc[:, ~((self.df_raw.iloc[:5, :] > 500).any())]
         print(self.df_raw.shape)
 
-
     def load(self):
         self.df_raw = self.df_raw.T
 
@@ -116,6 +116,17 @@ class ETL(object):
         return self.X_train, self.X_test, self.y_train, self.y_test
 
     def plot(self):
-        if self.show_plot:
-            self.df_raw.plot()
-            plt.show()
+        # plot the data with age in x axis and weight on the y axis.
+        self.df_raw.T.plot()
+        plt.show()
+
+        # plot the data of the time
+        """
+        log tranformation does not make a difference (avoiding outliers should improve our model but that is not the case
+        """
+
+        # import numpy as np
+        # log_df_raw = np.log(self.df_raw)
+        # log_df_raw.T.plot()
+        # plt.show()
+        # self.df_raw = log_df_raw

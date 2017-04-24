@@ -2,9 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from body_weight_predictor.etl import ETL
+from body_weight_predictor.base_etl import BaseETL
 
-X_train, X_test, y_train, y_test = ETL('bw_ross_308.csv', 5, 35).process()
+X_train, X_test, y_train, y_test = BaseETL('bw_ross_308.csv', 5, 35).process()
 
 #################################
 #
