@@ -22,49 +22,65 @@ class BaseETL(object):
             self.plot()
         return self.X_train, self.X_test, self.y_train, self.y_test
 
+    def plot_df(self, df, index='age_days', show_legend=False):
+        if self.show_plot:
+            df = df.set_index(index, drop=True)
+            df.plot(legend=True)
+            plt.show()
+
     def extract(self):
         # READ IN DATA
         # -----------------------
         self.df_raw = pd.read_csv(self.file_path).sort_values('age_days').reset_index(drop=True)
-        self.df_raw.head()
         return self.df_raw
 
-    def transform(self):
-        # DATA PREPROCESSING
-        # -----------------------
-        print(self.df_raw.shape)
+    def basic_cleaning(self):
+        print('initial shape df : {}'.format(self.df_raw.shape))
+
         # remove empty columns
         self.df_raw = self.df_raw.dropna(axis=1, how='all')
 
-        print(self.df_raw.shape)
+        print('removed rounds with empty body weight. shape of df {}'.format(self.df_raw.shape))
 
         # we can have only 1 value per day for bw.
         self.df_raw = self.df_raw.drop_duplicates(subset='age_days')
 
-        print(self.df_raw.shape)
+        print('removed duplicates days. we can only have 1 value per day. '
+              'we keep the first value we encounter. shape of df {}'.format(self.df_raw.shape))
 
         # remove data after 35 days
         self.df_raw = self.df_raw[self.df_raw['age_days'] <= self.dependend_variable_period]
         self.df_raw = self.df_raw.set_index('age_days', drop=True)
 
-        print(self.df_raw.shape)
+        print('removed values for days after our dependend variable {} '
+              '- shape of df {}.'.format(self.dependend_variable_period, self.df_raw.shape))
+
+        return self.df_raw
+
+    def transform(self):
+        # DATA PREPROCESSING
+        # -----------------------
+
+        self.df_raw = self.basic_cleaning()
+
+        self.plot_df(self.df_raw)
 
         # remove rounds with no initial data
         mask_no_initial_data = self.df_raw.fillna(method='ffill').notnull()
         self.df_raw = self.df_raw.loc[:, mask_no_initial_data.all(axis=0)]
 
-        print(self.df_raw.shape)
+        print('we cannot use rounds with no initial data. shape of df {}'.format(self.df_raw.shape))
 
         # remove rounds which have NaN before 35 days
         mask_no_end_data = self.df_raw.fillna(method='backfill').notnull()
         self.df_raw = self.df_raw.loc[:, mask_no_end_data.all(axis=0)]
 
-        print(self.df_raw.shape)
+        print('we remove rounds which have no data before our dependend variable. shape of df is {}'.format(self.dependend_variable_period, self.df_raw.shape))
 
         # remove all columns that have same value
         self.df_raw = self.df_raw.loc[:, self.df_raw.all(axis=0)]
 
-        print(self.df_raw.shape)
+        print('we remove all columns with the same value'.format(self.df_raw.shape))
 
         def duplicate_values_in_series(df, percentage_same_values=0.25):
             '''
@@ -88,21 +104,20 @@ class BaseETL(object):
 
         self.df_raw = duplicate_values_in_series(self.df_raw)
 
-        print(self.df_raw.shape)
+        print('we remove series with 25% same values in the series. df shape is {}'.format(self.df_raw.shape))
 
-        # drop columns which have extreme values in the beginning of the round to nan.
+        # drop columns which have extreme values in the beginning of the round.
         # sometimes the regulator is not reset before the next flock starts.
         # we ignore these extreme values
-
-        print(self.df_raw.shape)
         # we keep the columns which have no extreme values in the first 5 days.
+
         self.df_raw = self.df_raw.loc[:, ~((self.df_raw.iloc[:5, :] > 500).any())]
-        print(self.df_raw.shape)
+
+        print('drop columns which have a high value ( bw of 500 g ) within the first 5 days. df shape is {}'.format(self.df_raw.shape))
 
     def load(self):
         self.df_raw = self.df_raw.T
 
-        print(self.df_raw.describe())
 
         # get X, Y
 
@@ -120,13 +135,7 @@ class BaseETL(object):
         self.df_raw.T.plot()
         plt.show()
 
-        # plot the data of the time
         """
         log tranformation does not make a difference (avoiding outliers should improve our model but that is not the case
         """
 
-        # import numpy as np
-        # log_df_raw = np.log(self.df_raw)
-        # log_df_raw.T.plot()
-        # plt.show()
-        # self.df_raw = log_df_raw

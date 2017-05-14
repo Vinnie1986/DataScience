@@ -1,10 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from body_weight_predictor.base_etl import BaseETL
+from collections import defaultdict
+import tensorflow as tf
+import os
 
 
-def lstm(df_raw, look_back=5, end_period=30, show_plot=False):
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+tf.logging.set_verbosity(tf.logging.ERROR)
+
+def lstm(df_raw, look_back=5, end_period=30, show_plot=True):
     ########################################
     #
     # LSTM network
@@ -58,7 +63,7 @@ def lstm(df_raw, look_back=5, end_period=30, show_plot=False):
     # create and fit the LSTM network
     # http://deeplearning.net/tutorial/lstm.html
     model = Sequential()
-    model.add(LSTM(4, input_shape=(None, look_back)))
+    model.add(LSTM(4, input_shape=(None, look_back))) # todo - investigate why 4 nodes. check initial url of lstm
     model.add(Dense(1))
     model.compile(loss='mean_squared_error', optimizer='adam')
     model.fit(trainX, trainY, epochs=10, batch_size=1, verbose=2)
@@ -105,33 +110,87 @@ def create_graph(observed, predicted, xlabel, ylabel, legend, title):
     plt.legend(loc=legend)
     plt.show()
 
-start_prediction = 30
-to_predict_age_day = 35
-from collections import defaultdict
-best_score = defaultdict(list)
-for i in range(start_prediction):
-    if i > 0:
-        look_back = i
-        print('look_back period {}: we use period {} to {}'.format(i, start_prediction - i, start_prediction))
-        etl = BaseETL('bw_ross_308.csv', start_prediction, to_predict_age_day, False)
-        X_train, X_test, y_train, y_test = etl.process()
-        df_raw = etl.df_raw
-        train_score, test_score = lstm(df_raw, look_back, start_prediction)
-        best_score['test_score'].append(test_score)
-        best_score['train_score'].append(train_score)
-        best_score['look_back'].append(look_back)
 
-# print('beste test score {} RMSE with train score {}, lookback period {}'.format(best_score['test_score'],
-#                                                                                 best_score['train_score'],
-#
-#                        best_score['look_back']))
-best_score
-df_score = pd.DataFrame(best_score).set_index('look_back')
-plt.suptitle('scores', fontsize=20)
-plt.plot(df_score['test_score'], label='test')
-plt.plot(df_score['train_score'], label='train')
-plt.xlabel('lookback')
-plt.ylabel('RMSE')
-plt.legend(loc='upper right')
-plt.show()
-print(best_score)
+def plot_best_score(best_score, start_prediction, figsize=(15,15)):
+    df_score = pd.DataFrame(best_score).set_index('look_back')
+    plt.suptitle('scores', fontsize=20)
+    plt.figure(figsize=figsize)
+    plt.plot(df_score['test_score'], label='test')
+    plt.plot(df_score['train_score'], label='train')
+    plt.xlabel('lookback')
+    plt.ylabel('RMSE')
+    plt.legend(loc='upper right')
+    plt.show()
+    index_min_rmse_test = best_score['test_score'].index(min(best_score['test_score']))
+    print(
+        'best test score {} RMSE with train score {}, the lookback period we use starting from day {} is {} days'.format(
+            best_score['test_score'][index_min_rmse_test],
+            best_score['train_score'][index_min_rmse_test], start_prediction,
+            best_score['look_back'][index_min_rmse_test]))
+
+
+def find_best_look_back_period(df=None, start_prediction = 30, to_predict_age_day = 35):
+    """
+    Predict the body weight on day "to_predict_age_day" starting from day "start_prediction".
+    
+    :param df: 
+    :param start_prediction: 
+    :param to_predict_age_day: 
+    :return: 
+    """
+    if df is None:
+        # we import here because if we run from notebook we cannot do this import
+        from base_etl import BaseETL
+        etl = BaseETL('bw_ross_308.csv', start_of_predicition=start_prediction,
+                  dependend_variable_period=to_predict_age_day, show_plot=False)
+        etl.process()
+        df = etl.df_raw
+    else:
+        df = df.T # if do not transpose we also get a very good score.
+                  # which is very weird ....
+    scores = defaultdict(list)
+    for i in range(start_prediction):
+        if i > 0:
+            look_back = i
+            train_score, test_score = lstm(df, look_back, start_prediction, show_plot=False)
+            scores['test_score'].append(test_score)
+            scores['train_score'].append(train_score)
+            scores['look_back'].append(look_back)
+    return scores
+
+
+def get_df_for_prediction(start_prediction=30, to_predict_age_day=35):
+    from base_etl import BaseETL
+    etl = BaseETL('bw_ross_308.csv', start_of_predicition=start_prediction,
+                  dependend_variable_period=to_predict_age_day, show_plot=False)
+    etl.process()
+    df = etl.df_raw
+    return df
+
+
+def predict_value_using_a_lookback_period(lookback, start_prediction, to_predict_age_day = 35):
+    score = defaultdict(list)
+    for i in range(start_prediction):
+        if i > 1:
+            df = get_df_for_prediction(start_prediction=i)
+            if i < lookback:
+                train_score, test_score = lstm(df, i - 1, i, show_plot=False) # if we have 2 days as input we can only use these 2 days as lookback.
+            else:
+                train_score, test_score = lstm(df, lookback, i, show_plot=False)
+            score['test_score'].append(test_score)
+            score['train_score'].append(train_score)
+            score['look_back'].append(lookback)
+    return score
+
+def predict_value_while_finding_best_lookback_period(start_prediction, to_predict_age_day = 35):
+    best_score = {}
+    for i in range(start_prediction):
+        if i > 1:
+            scores = find_best_look_back_period(start_prediction=i, to_predict_age_day=35)
+            index_min_rmse_test = scores['test_score'].index(min(scores['test_score']))
+            agg_scores = {}
+            agg_scores['test_score'] = scores['test_score'][index_min_rmse_test]
+            agg_scores['train_score'] = scores['train_score'][index_min_rmse_test]
+            agg_scores['look_back'] = scores['look_back'][index_min_rmse_test]
+            best_score[i] = agg_scores
+    return best_score
