@@ -9,7 +9,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 tf.logging.set_verbosity(tf.logging.ERROR)
 
-def lstm(df_raw, look_back=5, end_period=30, show_plot=True):
+def lstm(df_raw, look_back=5, end_period=30, neurons = 4, show_plot=True):
     ########################################
     #
     # LSTM network
@@ -63,7 +63,13 @@ def lstm(df_raw, look_back=5, end_period=30, show_plot=True):
     # create and fit the LSTM network
     # http://deeplearning.net/tutorial/lstm.html
     model = Sequential()
-    model.add(LSTM(4, input_shape=(None, look_back))) # todo - investigate why 4 nodes. check initial url of lstm
+    # we use the sigmoid activation function becuase we transform our data to a number between 0 and 1.
+    # altough the default tanh function (value between -1 and 1) produces the same result. sigmoid is more "correct".
+    # using 4 nodes was an arbitrary choice. other choices of the number of neurons in our 1 hidden layer
+    # did not produce significant difference in the result.
+    # todo - using cross validation on the number of neurons likely will produce the optimal number of neurons
+    model.add(LSTM(neurons, input_shape=(None, look_back), activation='sigmoid'))
+
     model.add(Dense(1))
     model.compile(loss='mean_squared_error', optimizer='adam')
     model.fit(trainX, trainY, epochs=10, batch_size=1, verbose=2)
@@ -129,7 +135,7 @@ def plot_best_score(best_score, start_prediction, figsize=(15,15)):
             best_score['look_back'][index_min_rmse_test]))
 
 
-def find_best_look_back_period(df=None, start_prediction = 30, to_predict_age_day = 35):
+def find_best_look_back_period(df=None, start_prediction = 30, to_predict_age_day = 35, neurons = 4):
     """
     Predict the body weight on day "to_predict_age_day" starting from day "start_prediction".
     
@@ -152,7 +158,7 @@ def find_best_look_back_period(df=None, start_prediction = 30, to_predict_age_da
     for i in range(start_prediction):
         if i > 0:
             look_back = i
-            train_score, test_score = lstm(df, look_back, start_prediction, show_plot=False)
+            train_score, test_score = lstm(df, look_back, start_prediction, neurons=neurons, show_plot=False)
             scores['test_score'].append(test_score)
             scores['train_score'].append(train_score)
             scores['look_back'].append(look_back)
@@ -170,7 +176,7 @@ def get_df_for_prediction(start_prediction=30, to_predict_age_day=35):
 
 def predict_value_using_a_lookback_period(lookback, start_prediction, to_predict_age_day = 35):
     score = defaultdict(list)
-    for i in range(start_prediction):
+    for i in range(start_prediction + 1 ): # +1 to include the start prediction
         if i > 1:
             df = get_df_for_prediction(start_prediction=i)
             if i < lookback:

@@ -48,5 +48,5 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 /venv/
-/body_weight_predictor/.idea/
-/Machine Learning A-Z Template Folder/.idea/
+/projects/body_weight_predictor/.idea/
+/courses/Machine Learning A-Z Template Folder/.idea/
