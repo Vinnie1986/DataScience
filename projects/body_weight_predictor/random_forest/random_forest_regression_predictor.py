@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from projects.body_weight_predictor import BaseETL
+from projects.body_weight_predictor.pre_processing import PreProcessing
 
-X_train, X_test, y_train, y_test = BaseETL('bw_ross_308.csv', 5, 35).process()
+X_train, X_test, y_train, y_test = PreProcessing('bw_ross_308.csv', 5, 35).process()
 
 #################################
 #

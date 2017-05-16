@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-class BaseETL(object):
+class PreProcessing(object):
     def __init__(self, file_path, start_of_predicition, dependend_variable_period, show_plot=False):
         self.file_path = file_path  # 'bw_ross_308.csv'
         self.start_of_prediction = start_of_predicition
@@ -16,7 +16,7 @@ class BaseETL(object):
 
     def process(self):
         self.extract()
-        self.transform()
+        self.data_cleaning()
         self.load()
         if self.show_plot:
             self.plot()
@@ -57,7 +57,7 @@ class BaseETL(object):
 
         return self.df_raw
 
-    def transform(self):
+    def data_cleaning(self):
         # DATA PREPROCESSING
         # -----------------------
 
@@ -134,8 +134,3 @@ class BaseETL(object):
         # plot the data with age in x axis and weight on the y axis.
         self.df_raw.T.plot()
         plt.show()
-
-        """
-        log tranformation does not make a difference (avoiding outliers should improve our model but that is not the case
-        """
-

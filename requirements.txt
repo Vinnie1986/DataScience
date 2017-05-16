@@ -1,4 +1,4 @@
-# this is 1 requirements file for all my projects.
+# this is 1 requirements file for all my projects.git
 pandas
 numpy
 keras
