@@ -1,27 +1,27 @@
-import requests
 import json
 from datetime import datetime
 from datetime import timedelta
+
+import requests
 from dateutil import parser
+
 url = "http://api.coindesk.com/v1/bpi/historical/close.json"
 
-querystring = {"start":"2013-09-01","end":"2017-07-05"}
+querystring = {"start": "2013-09-01", "end": "2017-07-05"}
 
 headers = {
     'cache-control': "no-cache",
-    }
+}
 
 response = requests.request("GET", url, headers=headers, params=querystring)
 
 currency_price = json.loads(response.text).get('bpi')
 
-import requests
-
 url = "https://api.github.com/repos/bitcoin/bitcoin/stats/commit_activity"
 
 headers = {
     'cache-control': "no-cache",
-    }
+}
 
 response = requests.request("GET", url, headers=headers)
 
@@ -44,14 +44,17 @@ def convert_commits_to_daily_values(currency_commits):
 
     return ret_value
 
+
 currency_commits = convert_unix_ts(currency_commits)
 currency_commits = convert_commits_to_daily_values(currency_commits)
 
 import matplotlib.pyplot as plt
 import math
 import numpy as np
+
+
 def create_plots(time_series, cum_sum=False):
-    date_list = [ parser.parse(element) for element in list(time_series.keys())]
+    date_list = [parser.parse(element) for element in list(time_series.keys())]
     x = []
     for element in date_list:
         if element >= datetime(year=2016, month=7, day=24):
@@ -71,8 +74,9 @@ def create_plots(time_series, cum_sum=False):
         except Exception:
             pass
     y = y[-len(x):]
-    plt.plot(x,y)
+    plt.plot(x, y)
 
-create_plots(currency_commits, cum_sum=True)
+
+create_plots(currency_commits)
 create_plots(currency_price)
 plt.show()

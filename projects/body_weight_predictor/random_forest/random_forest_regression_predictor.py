@@ -2,8 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from projects.body_weight_predictor.pre_processing import PreProcessing
-
-X_train, X_test, y_train, y_test = PreProcessing('bw_ross_308.csv', 5, 35).process()
+from projects import ROOT
+import os
+X_train, X_test, y_train, y_test = PreProcessing(os.path.join(ROOT, 'body_weight_predictor', 'data', 'bw_ross_308.csv'), 5, 35).process()
 
 #################################
 #
